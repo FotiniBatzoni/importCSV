@@ -6,8 +6,9 @@ const { Role } = require("../../models/role");
 const storesToInsert = require("../../utilities/importCSV/storeFromCSVjosned");
 const bcrypt = require("bcrypt");
 const _ = require("lodash");
-const paymentMethods = require("../utilities/paymentMethods");
-const shippingMethods = require("../utilities/shipping_methods");
+const paymentMethods = require("../paymentMethods");
+const shippingMethods = require("../shippingMethods");
+
 
 /*
 address:{
@@ -20,22 +21,25 @@ lat: 23.7682218113526
 
 async function getPassword(){
     let password = "mydeliveryuser!";
-    let hash = bcrypt.genSalt(10);
-    return bcrypt.hash(password,hash);
+    let hash = await bcrypt.genSalt(10);
+    return await bcrypt.hash(password,hash);
 
 }
 
 
 async function importFromCsv(){
+    let role = await Role.findOne({"priority":2});
+
     let stores = storesToInsert;
     for(let client of stores){
         let input = {
             firstname: (client.contact_name.split(" ").length === 1) ? client.contact_name.split(" ")[0] : client.contact_name,
             lastname: (client.contact_name.split(" ").length === 1) ? client.contact_name.split(" ")[0] : client.contact_name.split(" ")[1],
             phone: client.contact_phone,
-            email: (!client.contact_email.includes('@') ) ? client.contact_name.concat('@mydelivery.gr') : client.contact_email,
+            email: (!client.contact_email.includes('@') ) ? client.contact_email.concat('@mydelivery.gr') : client.contact_email,
             password: await getPassword(),
             isActive: true,
+            role: role
         }
 
         const user = new User(input);
@@ -59,7 +63,7 @@ async function importFromCsv(){
 
         let general = {
             store_name:client.restaurant_name,
-            store_email:(!client.contact_email.includes('@') ) ? client.contact_name.concat('@mydelivery.gr') : client.contact_email,
+            store_email:(!client.contact_email.includes('@') ) ? client.contact_email.concat('@mydelivery.gr') : client.contact_email,
             isActive: true,
             percentage_keep:client.percent_commision,
             store_phone: client.contact_phone,
@@ -114,6 +118,9 @@ async function importFromCsv(){
         });
 
         await store.save();
+        user.stores = [store._id];
+
+        await user.save();
 
     }
 
